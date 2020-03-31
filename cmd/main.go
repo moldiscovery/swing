@@ -35,7 +35,7 @@ func main() {
 	var swingFile *os.File = parser.File(
 		"s",
 		"swing-file",
-		os.O_RDONLY,
+		os.O_RDWR|os.O_CREATE,
 		os.ModePerm,
 		&argparse.Options{Required: false, Default: "swing.csv", Help: "TODO"},
 	)
