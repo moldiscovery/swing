@@ -2,10 +2,14 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -17,14 +21,33 @@ import (
 // Authorize user using saved credentials, if MFA devices are found
 // for this user asks to pick device and input token
 func Authorize(region string) (*session.Session, error) {
+	creds, err := readCache()
+	if err != nil {
+		return nil, err
+	}
+
+	if creds != nil && creds.Expiration.After(time.Now().UTC()) {
+		// Cache hit, user is still authenticated
+		return session.Must(session.NewSession(
+			&aws.Config{
+				Region: aws.String(region),
+				Credentials: credentials.NewStaticCredentialsFromCreds(
+					credentials.Value{
+						AccessKeyID:     creds.AccessKey,
+						SecretAccessKey: creds.SecretAccessKey,
+						SessionToken:    creds.SessionToken,
+					},
+				),
+			},
+		)), nil
+	}
 
 	// Region set here is overwritten if found in AWS shared credential file
 	sess := session.Must(session.NewSession(&aws.Config{
 		Region: aws.String(region),
 	}))
-	// TODO: Check cache
 
-	_, err := sess.Config.Credentials.Get()
+	_, err = sess.Config.Credentials.Get()
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +84,12 @@ func Authorize(region string) (*session.Session, error) {
 		return nil, err
 	}
 
-	// TODO: Cache here
+	saveCache(&cachedCredentials{
+		AccessKey:       *newCredentials.Credentials.AccessKeyId,
+		SecretAccessKey: *newCredentials.Credentials.SecretAccessKey,
+		SessionToken:    *newCredentials.Credentials.SessionToken,
+		Expiration:      *newCredentials.Credentials.Expiration,
+	})
 
 	return session.Must(session.NewSession(
 		&aws.Config{
@@ -75,6 +103,69 @@ func Authorize(region string) (*session.Session, error) {
 			),
 		},
 	)), nil
+}
+
+type cachedCredentials struct {
+	AccessKey       string    `json:"accessKey"`
+	SecretAccessKey string    `json:"secretAccessKey"`
+	SessionToken    string    `json:"sessionToken"`
+	Expiration      time.Time `json:"expiration"`
+}
+
+func cachePath() (string, error) {
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		return "", fmt.Errorf("Can't find config directory: %v", err)
+	}
+
+	configDir = filepath.Join(configDir, "Swing")
+	err = os.MkdirAll(configDir, os.ModePerm)
+	if err != nil {
+		return "", fmt.Errorf("Can't create config directory: %v", err)
+	}
+
+	return filepath.Join(configDir, "swing.conf"), nil
+}
+
+func readCache() (*cachedCredentials, error) {
+	configPath, err := cachePath()
+	if err != nil {
+		return nil, err
+	}
+
+	configs, err := ioutil.ReadFile(configPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("Error reading configs: %v", err)
+	}
+
+	var c *cachedCredentials
+	err = json.Unmarshal(configs, &c)
+	if err != nil {
+		return nil, fmt.Errorf("Error parsing configs: %v", err)
+	}
+
+	return c, nil
+}
+
+func saveCache(c *cachedCredentials) error {
+	configPath, err := cachePath()
+	if err != nil {
+		return err
+	}
+
+	data, err := json.Marshal(c)
+	if err != nil {
+		return fmt.Errorf("Can't convert credentials to json: %v", err)
+	}
+
+	// We ignore the error here, it would be obviously better if credentials
+	// are saved to avoid asking a new token each time but we'll take the risk
+	ioutil.WriteFile(configPath, data, os.ModePerm)
+
+	return nil
 }
 
 // Gets list of MFA devices associated with the user's account
