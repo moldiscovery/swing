@@ -15,6 +15,9 @@ If no credentials file is found Swing will search for this env vars:
 * AWS_SECRET_ACCESS_KEY
 * AWS_SESSION_TOKEN (optional)
 
+If the user's account has more a MFA device associated it will be prompted for the token generated.
+In case the devices are more then one it will be first prompted to pick a device to use for MFA.
+
 If neither credentials file and env vars are found Swing will fail.
 
 To create your access keys see the [official AWS documentation][aws-credentials-docs].

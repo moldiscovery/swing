@@ -5,8 +5,6 @@ import (
 	"os"
 
 	"github.com/akamensky/argparse"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 )
 
 func main() {
@@ -79,10 +77,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Region set here is overwritten if found in AWS shared credential file
-	sess := session.Must(session.NewSession(&aws.Config{
-		Region: aws.String(*region),
-	}))
+	sess, err := Authorize(*region)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 
 	manager := Manager{
 		SwingFile: swingFile,
