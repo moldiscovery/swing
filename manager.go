@@ -2,11 +2,13 @@ package main
 
 import (
 	"crypto/md5"
+	"encoding/csv"
 	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -25,6 +27,8 @@ type Manager struct {
 
 type uploadedFile struct {
 	Path      string
+	Region    string
+	Bucket    string
 	MD5       string
 	VersionID string
 }
@@ -96,23 +100,27 @@ func (m *Manager) Upload(files *[]os.File) {
 
 			resc <- uploadedFile{
 				Path:      relFilePath,
+				Region:    *m.Session.Config.Region,
+				Bucket:    m.Bucket,
 				MD5:       md5String,
 				VersionID: *res.VersionID,
 			}
 		}(file)
 	}
 
-	responses := make([]uploadedFile, 0)
+	uploadedFiles := make([]uploadedFile, 0)
 	for i := 0; i < len(validFiles); i++ {
 		select {
 		case err := <-errc:
 			fmt.Printf("Upload error: %v\n", err)
 		case res := <-resc:
-			responses = append(responses, res)
+			uploadedFiles = append(uploadedFiles, res)
 		}
 	}
 	close(errc)
 	close(resc)
+
+	m.updateSwingFile(uploadedFiles)
 }
 
 // Verifies the specified file is a subfolder of SwingDir
@@ -145,10 +153,66 @@ func (m *Manager) Download() {
 
 }
 
-func (m *Manager) updateSwingFile() {
+func (m *Manager) updateSwingFile(files []uploadedFile) {
+	savedFiles, err := m.readSwingFile()
+	if err != nil {
+		// This would be pretty bad, we're not updating the Swing
+		// file but at least we uploaded the files correctly
+		fmt.Printf("Files are uploaded but Swing file can't be updated: %v\n", err)
+		os.Exit(1)
+	}
 
+	uniqueFiles := make(map[string]uploadedFile)
+	for _, f := range savedFiles {
+		uniqueFiles[f.Path] = f
+	}
+	for _, f := range files {
+		uniqueFiles[f.Path] = f
+	}
+
+	// We want the files to be sorted when saved
+	keys := make([]string, len(uniqueFiles))
+	i := 0
+	for k := range uniqueFiles {
+		keys[i] = k
+		i++
+	}
+	sort.Strings(keys)
+
+	writer := csv.NewWriter(m.SwingFile)
+	writer.Comma = ';'
+	for _, k := range keys {
+		line := make([]string, 5)
+		line[0] = uniqueFiles[k].Path
+		line[1] = uniqueFiles[k].Region
+		line[2] = uniqueFiles[k].Bucket
+		line[3] = uniqueFiles[k].MD5
+		line[4] = uniqueFiles[k].VersionID
+		writer.Write(line)
+	}
+	writer.Flush()
 }
 
-func (m *Manager) readSwingFile() {
+func (m *Manager) readSwingFile() ([]uploadedFile, error) {
+	reader := csv.NewReader(m.SwingFile)
+	reader.TrimLeadingSpace = true
+	reader.Comma = ';'
 
+	lines, err := reader.ReadAll()
+	if err != nil {
+		return nil, fmt.Errorf("Error reading Swing file: %v", err)
+	}
+
+	result := make([]uploadedFile, len(lines))
+	for i, l := range lines {
+		result[i] = uploadedFile{
+			Path:      l[0],
+			Region:    l[1],
+			Bucket:    l[2],
+			MD5:       l[3],
+			VersionID: l[4],
+		}
+	}
+
+	return result, nil
 }
