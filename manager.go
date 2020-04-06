@@ -20,9 +20,9 @@ type Manager struct {
 	Session   *session.Session
 }
 
-type uploadResponse struct {
-	File   string
-	Output s3manager.UploadOutput
+type uploadedFile struct {
+	Path      string
+	VersionID string
 }
 
 // Upload files to Manager Bucket
@@ -54,33 +54,38 @@ func (m *Manager) Upload(files *[]os.File) {
 	}
 
 	uploader := s3manager.NewUploader(m.Session)
-	resc := make(chan uploadResponse)
+	resc := make(chan uploadedFile)
 	errc := make(chan error)
 
 	for _, file := range validFiles {
 		go func(f os.File) {
 			defer f.Close()
-			// TODO: Key should be file's relative path from Swing file
+			relFilePath, err := m.relativePathToSwingFile(f.Name())
+			if err != nil {
+				errc <- err
+				return
+			}
+
 			res, err := uploader.Upload(
 				&s3manager.UploadInput{
 					Bucket: aws.String(m.Bucket),
-					Key:    aws.String(f.Name()),
+					Key:    aws.String(relFilePath),
 					Body:   &f,
 				},
 			)
 
 			if err != nil {
 				errc <- err
-			} else {
-				resc <- uploadResponse{
-					File:   f.Name(),
-					Output: *res,
-				}
+			}
+
+			resc <- uploadedFile{
+				Path:      relFilePath,
+				VersionID: *res.VersionID,
 			}
 		}(file)
 	}
 
-	responses := make([]uploadResponse, 0)
+	responses := make([]uploadedFile, 0)
 	for i := 0; i < len(validFiles); i++ {
 		select {
 		case err := <-errc:
@@ -101,6 +106,21 @@ func (m *Manager) isValidPath(file os.File) (bool, error) {
 	}
 	fileDir, _ := filepath.Split(fileAbsPath)
 	return strings.Contains(fileDir, m.SwingDir), nil
+}
+
+func (m *Manager) relativePathToSwingFile(file string) (string, error) {
+	// Assuming these return no errors
+	fileAbsPath, err := filepath.Abs(file)
+	if err != nil {
+		return "", fmt.Errorf("Can't get absolute path to file: %v", err)
+	}
+
+	relPath, err := filepath.Rel(m.SwingDir, fileAbsPath)
+	if err != nil {
+		return "", fmt.Errorf("Can't get relative path to file: %v", err)
+	}
+
+	return relPath, nil
 }
 
 // Download files found in Manager SwingFile
