@@ -76,6 +76,7 @@ func (m *Manager) Upload(files *[]os.File) {
 
 			if err != nil {
 				errc <- err
+				return
 			}
 
 			resc <- uploadedFile{
