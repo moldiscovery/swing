@@ -1,7 +1,10 @@
 package main
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -22,6 +25,7 @@ type Manager struct {
 
 type uploadedFile struct {
 	Path      string
+	MD5       string
 	VersionID string
 }
 
@@ -60,6 +64,17 @@ func (m *Manager) Upload(files *[]os.File) {
 	for _, file := range validFiles {
 		go func(f os.File) {
 			defer f.Close()
+
+			hash := md5.New()
+			if _, err := io.Copy(hash, &f); err != nil {
+				errc <- fmt.Errorf("Can't calculate MD5 hash of file: %v", err)
+				return
+			}
+
+			md5String := hex.EncodeToString(hash.Sum(nil))
+
+			f.Seek(0, 0)
+
 			relFilePath, err := m.relativePathToSwingFile(f.Name())
 			if err != nil {
 				errc <- err
@@ -81,6 +96,7 @@ func (m *Manager) Upload(files *[]os.File) {
 
 			resc <- uploadedFile{
 				Path:      relFilePath,
+				MD5:       md5String,
 				VersionID: *res.VersionID,
 			}
 		}(file)
