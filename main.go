@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/akamensky/argparse"
 )
@@ -83,8 +84,16 @@ func main() {
 		os.Exit(1)
 	}
 
+	swingAbsPath, err := filepath.Abs(swingFile.Name())
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	swingDir, _ := filepath.Split(swingAbsPath)
+
 	manager := Manager{
 		SwingFile: swingFile,
+		SwingDir:  swingDir,
 		Bucket:    *bucket,
 		Session:   sess,
 	}
