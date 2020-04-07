@@ -73,7 +73,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if files != nil && *download {
+	if len(*files) > 0 && *download {
 		fmt.Println("You can't specify both -f|--files and -d|--download")
 		os.Exit(1)
 	}
