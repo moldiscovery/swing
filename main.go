@@ -50,7 +50,7 @@ func main() {
 		"s",
 		"swing-file",
 		os.O_RDWR|os.O_CREATE,
-		os.ModePerm,
+		0644,
 		&argparse.Options{
 			Required: false,
 			Default:  "swing.csv",
