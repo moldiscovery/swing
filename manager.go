@@ -277,6 +277,10 @@ func (m *Manager) updateSwingFile(files []uploadedFile) {
 
 	writer := csv.NewWriter(m.SwingFile)
 	writer.Comma = ';'
+
+	// CSV header
+	writer.Write([]string{"file", "region", "bucket", "md5", "version_id"})
+
 	for _, k := range keys {
 		line := make([]string, 5)
 		line[0] = uniqueFiles[k].Path
@@ -294,6 +298,10 @@ func (m *Manager) readSwingFile() ([]uploadedFile, error) {
 	reader.TrimLeadingSpace = true
 	reader.Comma = ';'
 
+	// Reads header and discards it
+	reader.Read()
+
+	// Reads the rest of the file
 	lines, err := reader.ReadAll()
 	if err != nil {
 		return nil, fmt.Errorf("Error reading Swing file: %v", err)
