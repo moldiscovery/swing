@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"crypto/md5"
 	"encoding/csv"
 	"encoding/hex"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 )
 
@@ -84,6 +86,7 @@ func (m *Manager) Upload(files *[]os.File) {
 				errc <- err
 				return
 			}
+			relFilePath = filepath.ToSlash(relFilePath)
 
 			res, err := uploader.Upload(
 				&s3manager.UploadInput{
@@ -150,7 +153,97 @@ func (m *Manager) relativePathToSwingFile(file string) (string, error) {
 
 // Download files found in Manager SwingFile
 func (m *Manager) Download() {
+	files, err := m.readSwingFile()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 
+	toDownload := make([]uploadedFile, 0)
+	for _, file := range files {
+		path := filepath.Join(m.SwingDir, filepath.FromSlash(file.Path))
+		f, err := os.Open(path)
+		if err != nil {
+			fmt.Printf("Can't open file: %v\n", err)
+			continue
+		}
+		defer f.Close()
+
+		hash := md5.New()
+		if _, err := io.Copy(hash, f); err != nil {
+			fmt.Printf("Can't calculate MD5 of file: %v\n", err)
+			continue
+		}
+		md5String := hex.EncodeToString(hash.Sum(nil))
+
+		if file.MD5 != md5String {
+			toDownload = append(toDownload, file)
+		}
+	}
+
+	if len(toDownload) > 0 {
+		fmt.Println("The following files will be overwritten:")
+		for _, file := range toDownload {
+			fmt.Println(file.Path)
+		}
+		reader := bufio.NewReader(os.Stdin)
+		fmt.Printf("Do you want to continue? [Y/N]: ")
+		text, err := reader.ReadString('\n')
+		if err != nil {
+			fmt.Printf("Error reading input: %v\n", err)
+			os.Exit(1)
+		}
+		text = strings.ToLower(strings.TrimSpace(text))
+		switch text {
+		case "yes":
+		case "y":
+			fmt.Println("Starting download")
+		case "no":
+		case "n":
+			fmt.Println("Aborting download")
+			os.Exit(0)
+		}
+	} else {
+		fmt.Println("Nothing to download, files already updated")
+	}
+
+	downloader := s3manager.NewDownloader(m.Session)
+	errc := make(chan error)
+	filec := make(chan string)
+
+	for _, file := range toDownload {
+		go func(f uploadedFile) {
+			downloadPath := filepath.Join(m.SwingDir, filepath.FromSlash(f.Path))
+			file, err := os.OpenFile(downloadPath, os.O_WRONLY, 0644)
+			if err != nil {
+				errc <- fmt.Errorf("Can't open file: %v", err)
+				return
+			}
+
+			_, err = downloader.Download(
+				file,
+				&s3.GetObjectInput{
+					Bucket:    aws.String(f.Bucket),
+					Key:       aws.String(f.Path),
+					VersionId: aws.String(f.VersionID),
+				},
+			)
+			if err != nil {
+				errc <- fmt.Errorf("Can't download file: %v", err)
+				return
+			}
+			filec <- downloadPath
+		}(file)
+	}
+
+	for i := 0; i < len(toDownload); i++ {
+		select {
+		case err := <-errc:
+			fmt.Println(err)
+		case f := <-filec:
+			fmt.Printf("Downloaded file: %s\n", f)
+		}
+	}
 }
 
 func (m *Manager) updateSwingFile(files []uploadedFile) {
