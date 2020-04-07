@@ -179,6 +179,9 @@ func (m *Manager) updateSwingFile(files []uploadedFile) {
 	}
 	sort.Strings(keys)
 
+	m.SwingFile.Truncate(0)
+	m.SwingFile.Seek(0, 0)
+
 	writer := csv.NewWriter(m.SwingFile)
 	writer.Comma = ';'
 	for _, k := range keys {
