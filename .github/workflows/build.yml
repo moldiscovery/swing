@@ -1,0 +1,78 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "*"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v2
+
+      - name: Build and package Linux
+        env:
+          GOOS: linux
+          GOARCH: amd64
+        run: |
+          go build
+          zip -r swing-linux-x64.zip README.md LICENSE swing
+
+      - name: Build and package Windows
+        env:
+          GOOS: windows
+          GOARCH: amd64
+        run: |
+          go build
+          zip -r swing-windows-x64.zip README.md LICENSE swing.exe
+
+      - name: Build and package OS X
+        env:
+          GOOS: darwin
+          GOARCH: amd64
+        run: |
+          go build
+          zip -r swing-osx-x64.zip README.md LICENSE swing
+
+      - name: Create release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+
+      - name: Upload Linux package
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./swing-linux-x64.zip
+          asset_name: swing-linux-x64.zip
+          asset_content_type: application/zip
+
+      - name: Upload Windows package
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./swing-windows-x64.zip
+          asset_name: swing-windows-x64.zip
+          asset_content_type: application/zip
+
+      - name: Upload OS X package
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./swing-osx-x64.zip
+          asset_name: swing-osx-x64.zip
+          asset_content_type: application/zip
