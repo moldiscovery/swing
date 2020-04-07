@@ -2,6 +2,8 @@
 
 Swing is a command line tool used to manage upload and download versioned files from AWS S3. It has been thought as an alternative to Git LFS.
 
+Versioning **MUST** be enabled on the buckets used with Swing for it to work correctly.
+
 Each time a file is uploaded its path and version are added to a CSV, the Swing file, so that it can be commited to VCS to ease tracking.
 
 Files can be easily downloaded by running Swing in the same directory of the Swing file, all modified files will be downloaded using the specified version, if the specified version is not found the latest version will be downloaded instead.
@@ -61,6 +63,24 @@ If no default Swing file is found in the current folder nothing will be done.
 
 
 Both on upload and download you can specify a custom Swing file with `--swing-file` and the relative path.
+
+# Swing file
+
+The Swing file is a CSV not meant to be edited manually, each field is separated by a semicolon (`;`).
+
+This is an example:
+
+```
+file;region;bucket;md5;version_id
+data/my_database.sqlite;eu-central-1;test.bucket.com;412300cb44e55e67dced78c42e7fbcaa;Edhf5InUn20iG8errAxTo3qjZx.OCXjE
+big_binary;eu-central-1;test.bucket.com;ac6f71a29304799218cc2427f567f436;paZmQA4Di4kHbjbY1623l1raqqgYWRG3
+libraries/other_lib.a;eu-central-1;test.bucket.com;f572bf8f0ca53b342aca927a509d3f6c;8_QHfD.C050sVkQKtqEz1jay7ZqGn2lZ
+```
+
+`file` is the path of the file relative to the Swing file.
+`region` and `bucket` are respectively the AWS region in which the bucket is hosting the file.
+`md5` is the hash of the file calculated during the upload.
+`version_id` is the id of the object uploaded version, returned by AWS after successful upload.
 
 # Build
 
