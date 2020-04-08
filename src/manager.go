@@ -162,6 +162,14 @@ func (m *Manager) Download() {
 	toDownload := make([]uploadedFile, 0)
 	for _, file := range files {
 		path := filepath.Join(m.SwingDir, filepath.FromSlash(file.Path))
+
+		// Check if file exists first of all
+		_, err := os.Stat(path)
+		if os.IsNotExist(err) {
+			toDownload = append(toDownload, file)
+			continue
+		}
+
 		f, err := os.Open(path)
 		if err != nil {
 			fmt.Printf("Can't open file: %v\n", err)
