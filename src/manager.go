@@ -36,14 +36,14 @@ type uploadedFile struct {
 }
 
 // Upload files to Manager Bucket
-func (m *Manager) Upload(files *[]os.File) {
+func (m *Manager) Upload(files []*os.File) {
 	// Filters files not on the same or below level of Swing file.
 	// This is done because Swing has been thought to manage files
 	// inside a Git directory, the Swing file is meant to live in
 	// the root of a repository
-	validFiles := make([]os.File, 0)
+	validFiles := make([]*os.File, 0)
 	invalidFiles := make([]string, 0)
-	for _, f := range *files {
+	for _, f := range files {
 		valid, err := m.isValidPath(f)
 		if err != nil {
 			fmt.Println(err)
@@ -108,7 +108,7 @@ func (m *Manager) Upload(files *[]os.File) {
 				MD5:       md5String,
 				VersionID: *res.VersionID,
 			}
-		}(file)
+		}(*file)
 	}
 
 	uploadedFiles := make([]uploadedFile, 0)
@@ -127,7 +127,7 @@ func (m *Manager) Upload(files *[]os.File) {
 }
 
 // Verifies the specified file is a subfolder of SwingDir
-func (m *Manager) isValidPath(file os.File) (bool, error) {
+func (m *Manager) isValidPath(file *os.File) (bool, error) {
 	fileAbsPath, err := filepath.Abs(file.Name())
 	if err != nil {
 		return false, fmt.Errorf("Can't get absolute path to file: %v", err)
@@ -222,7 +222,7 @@ func (m *Manager) Download() {
 	for _, file := range toDownload {
 		go func(f uploadedFile) {
 			downloadPath := filepath.Join(m.SwingDir, filepath.FromSlash(f.Path))
-			file, err := os.OpenFile(downloadPath, os.O_WRONLY, 0644)
+			file, err := os.OpenFile(downloadPath, os.O_WRONLY|os.O_CREATE, 0644)
 			if err != nil {
 				errc <- fmt.Errorf("Can't open file: %v", err)
 				return

@@ -29,23 +29,23 @@ To know more about the environment variables see [this other documentation][aws-
 
 Swing accepts these arguments:
 
-  * `-h` or `--help` prints the help
-  * `-f` or `--files` specifies which files to upload
-  * `-r` or `--region` AWS region in which the bucket is stored
-  * `-b` or `--bucket` name of the bucket to use
-  * `-s` or `--swing-file` specifies a custom CSV file used to write files list on upload and read them on download, defaults to `swing.csv`
-  * `-d` or `--download` starts download of files found in specified swing file
+  * `-h` or `-help` prints the help
+  * `-r` or `-region` AWS region in which the bucket is stored
+  * `-b` or `-bucket` name of the bucket to use
+  * `-s` or `-swing-file` specifies a custom CSV file used to write files list on upload and read them on download, defaults to `swing.csv`
+  * `-d` or `-download` starts download of files found in specified swing file
+  * `-h` or `-help` shows the help text
 
 To upload:
 
 ```
-swing --files <path_to_file> --bucket <s3_bucket> --region <aws_region>
+swing --bucket <s3_bucket> --region <aws_region> <path_to_file>
 ```
 
-Multiple files can be uploaded at the same time by specifying `--files` each time:
+Multiple files can be uploaded at the same time if necessary:
 
 ```
---files <path_to_file> --files <path_to_another_file>
+swing --bucket <s3_bucket> --region <aws_region> <path_to_file_1> <path_to_file_2> <path_to_file_3>
 ```
 
 If the `--region` flag is omitted the region specified in the AWS shared config file for the current profile will be used, if no config file is found Swing will fail. The config file is stored in `~/.aws/config` on Linux and OS X, and in `%UserProfile%\.aws\config` on Windows.
