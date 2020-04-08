@@ -19,7 +19,7 @@ const usage string = `Usage: swing [-h|--help] [-r|--region "<value>"] -b|--buck
 
 func Run() {
 	var region, bucket, swingFilePath string
-	var download, help bool
+	var download, help, version bool
 
 	const regionDefault string = ""
 	const regionUsage string = "AWS region of bucket"
@@ -46,7 +46,13 @@ func Run() {
 	flag.BoolVar(&help, "help", helpDefault, helpUsage)
 	flag.BoolVar(&help, "h", helpDefault, helpUsage+" (shorthand)")
 
+	const versionDefault bool = false
+	const versionUsage string = "Prints Swing version"
+	flag.BoolVar(&version, "version", versionDefault, versionUsage)
+	flag.BoolVar(&version, "v", versionDefault, versionUsage+" (shorthand)")
+
 	flag.Usage = func() {
+		fmt.Fprintf(flag.CommandLine.Output(), "Swing version %s\n", CurrentVersion)
 		fmt.Fprintln(flag.CommandLine.Output(), usage)
 		fmt.Fprintln(flag.CommandLine.Output(), "Arguments:")
 		flag.PrintDefaults()
@@ -57,6 +63,11 @@ func Run() {
 
 	if help || flag.NFlag() == 0 {
 		flag.Usage()
+	}
+
+	if version {
+		fmt.Printf("Swing version %s\n", CurrentVersion)
+		os.Exit(0)
 	}
 
 	if len(bucket) == 0 && !download {
