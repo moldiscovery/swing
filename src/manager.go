@@ -67,6 +67,7 @@ func (m *Manager) Upload(files []*os.File) {
 	resc := make(chan uploadedFile)
 	errc := make(chan error)
 
+	fmt.Println("Starting upload")
 	for _, file := range validFiles {
 		go func(f os.File) {
 			defer f.Close()
@@ -122,6 +123,8 @@ func (m *Manager) Upload(files []*os.File) {
 	}
 	close(errc)
 	close(resc)
+
+	fmt.Println("Upload completed")
 
 	m.updateSwingFile(uploadedFiles)
 }
@@ -299,6 +302,8 @@ func (m *Manager) updateSwingFile(files []uploadedFile) {
 		writer.Write(line)
 	}
 	writer.Flush()
+
+	fmt.Println("Updated Swing file")
 }
 
 func (m *Manager) readSwingFile() ([]uploadedFile, error) {
