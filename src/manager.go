@@ -218,7 +218,6 @@ func (m *Manager) Download() {
 		fmt.Println("Nothing to download, files already updated")
 	}
 
-	downloader := s3manager.NewDownloader(m.Session)
 	errc := make(chan error)
 	filec := make(chan string)
 
@@ -231,6 +230,11 @@ func (m *Manager) Download() {
 				return
 			}
 
+			downloader := s3manager.NewDownloader(m.Session.Copy(
+				&aws.Config{
+					Region: aws.String(f.Region),
+				},
+			))
 			_, err = downloader.Download(
 				file,
 				&s3.GetObjectInput{
