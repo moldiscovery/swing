@@ -25,6 +25,55 @@ If neither credentials file and env vars are found Swing will fail.
 To create your access keys see the [official AWS documentation][aws-credentials-docs].
 To know more about the environment variables see [this other documentation][aws-env-vars-docs].
 
+# Necessary AWS IAM permissions
+
+S3 Buckets permissions 
+
+```
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "s3:ListAllMyBuckets",
+                "s3:GetBucketLocation",
+                "s3:GetBucketAcl"
+            ],
+            "Resource": "arn:aws:s3:::*"
+        },
+        {
+            "Sid": "devBucketsAccess",
+            "Effect": "Allow",
+            "Action": [
+                "s3:*"
+            ],
+            "Resource": [
+                "arn:aws:s3:::mybucket*"
+            ]
+        }
+    ]
+}
+```
+
+IAM permissions 
+
+```
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "GetUserInformations",
+            "Effect": "Allow",
+            "Action": [
+                "iam:GetUser",
+                "iam:ListMFADevices"
+            ],
+            "Resource": "arn:aws:iam::*:user/${aws:username}"
+        }
+    ]
+}
+```
 # Usage
 
 Swing accepts these arguments:
