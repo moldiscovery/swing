@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 )
 
-const usage string = `Usage: swing [-h|--help] [-r|--region "<value>"] -b|--bucket
-		"<value>" [-s|--swing-file <file>]
+const usage string = `Usage: swing [-h|--help]  [-y|--yes] [-r|--region "<value>"] -b|--bucket
+		"<value>" [-s|--swing-file <file>] 
 		[-d|--download] <files...>
 
 	Swing is used to upload and download files from AWS S3.
@@ -19,7 +19,7 @@ const usage string = `Usage: swing [-h|--help] [-r|--region "<value>"] -b|--buck
 
 func Run() {
 	var region, bucket, swingFilePath string
-	var download, help, version bool
+	var download, help, version, confirm bool
 
 	const regionDefault string = ""
 	const regionUsage string = "AWS region of bucket"
@@ -50,6 +50,11 @@ func Run() {
 	const versionUsage string = "Prints Swing version"
 	flag.BoolVar(&version, "version", versionDefault, versionUsage)
 	flag.BoolVar(&version, "v", versionDefault, versionUsage+" (shorthand)")
+
+	const confirmDefault bool = false
+	const confirmUsage string = "Assume yes to all questions"
+	flag.BoolVar(&confirm, "yes", confirmDefault, confirmUsage)
+	flag.BoolVar(&confirm, "y", confirmDefault, confirmUsage+" (shorthand)")
 
 	flag.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), "Swing version %s\n", CurrentVersion)
@@ -104,6 +109,7 @@ func Run() {
 		SwingFile: swingFile,
 		SwingDir:  swingDir,
 		Bucket:    bucket,
+		BatchMode: confirm,
 		Session:   sess,
 	}
 

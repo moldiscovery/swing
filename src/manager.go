@@ -24,6 +24,7 @@ type Manager struct {
 	SwingFile *os.File
 	SwingDir  string
 	Bucket    string
+	BatchMode bool
 	Session   *session.Session
 }
 
@@ -198,21 +199,26 @@ func (m *Manager) Download() {
 			fmt.Println(file.Path)
 		}
 		reader := bufio.NewReader(os.Stdin)
-		fmt.Printf("Do you want to continue? [Y/N]: ")
-		text, err := reader.ReadString('\n')
-		if err != nil {
-			fmt.Printf("Error reading input: %v\n", err)
-			os.Exit(1)
-		}
-		text = strings.ToLower(strings.TrimSpace(text))
-		switch text {
-		case "yes":
-		case "y":
+		if m.BatchMode {
 			fmt.Println("Starting download")
-		case "no":
-		case "n":
-			fmt.Println("Aborting download")
-			os.Exit(0)
+		} else {
+			fmt.Printf("Do you want to continue? [Y/N]: ")
+			text, err := reader.ReadString('\n')
+			if err != nil {
+				fmt.Printf("Error reading input: %v\n", err)
+				os.Exit(1)
+			}
+
+			text = strings.ToLower(strings.TrimSpace(text))
+			switch text {
+			case "yes":
+			case "y":
+				fmt.Println("Starting download")
+			case "no":
+			case "n":
+				fmt.Println("Aborting download")
+				os.Exit(0)
+			}
 		}
 	} else {
 		fmt.Println("Nothing to download, files already updated")
