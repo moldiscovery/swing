@@ -48,7 +48,7 @@ Default output format [None]:
 ***Linux***
 
 ```
-esport AWS_ACCESS_KEY_ID=my-aws-key 
+export AWS_ACCESS_KEY_ID=my-aws-key 
 export AWS_SECRET_ACCESS_KEY=my-aws-secret-key 
 ```
 
@@ -66,7 +66,7 @@ TODO
 
 ### Existing projects using swing
 
-On Existing projects it is supposed to have swing.csv somewhere in the code. if it's in the same dir swing is you'll just run
+On existing projects it is supposed to have ```swing.csv``` somewhere in the code. If it's in the same dir swing is you'll just run
 
 ```
 $ swing -d -s pathto/swing.csv
