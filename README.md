@@ -74,7 +74,7 @@ $ swing -d -s pathto/swing.csv
 
 ### New projects 
 
-Just start uploading your files on an existing S3 bucket. You must have access to the bucket specified with option -bucket, [Check Usage Section](usage)
+Just start uploading your files on an existing S3 bucket. You must have access to the bucket specified with option `-bucket`, [Check Usage Section](usage)
 
 ## Usage
 
@@ -203,4 +203,4 @@ go install
 
 [aws-env-vars-docs]: https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html
 [aws-credentials-docs]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html#Using_CreateAccessKey
-[swinf-release]: https://github.com/moldiscovery/swing/releases
+[swing-releases]: https://github.com/moldiscovery/swing/releases
