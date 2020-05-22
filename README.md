@@ -74,7 +74,7 @@ $ swing -d -s pathto/swing.csv
 
 ### New projects 
 
-Just start uploading your files on an existing S3 bucket. You must have access to the bucket specified with option `-bucket`, [Check Usage Section](usage)
+Just start uploading your files on an existing S3 bucket. You must have access to the bucket specified with option `-bucket` (Check the following Usage Section for details)
 
 ## Usage
 
