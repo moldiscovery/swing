@@ -8,7 +8,7 @@ Each time a file is uploaded its path and version are added to a CSV, the Swing 
 
 Files can be easily downloaded by running Swing in the same directory of the Swing file, all modified files will be downloaded using the specified version, if the specified version is not found the latest version will be downloaded instead.
 
-# Download 
+# Download
 
 Download Swing for your OS from the [Releases page][swing-releases] and put it in your project root. Start using it
 
@@ -17,9 +17,10 @@ Download Swing for your OS from the [Releases page][swing-releases] and put it i
 Swing will use the credentials found in the AWS shared credentials file, you can specify which profile to use by setting the env var `AWS_PROFILE`, otherwise the `default` profile will be used. The credentials file is stored in `~/.aws/credentials` on Linux and OS X, and `%UserProfile%\.aws\credentials` on Windows
 
 If no credentials file is found Swing will search for this env vars:
-* AWS_ACCESS_KEY_ID
-* AWS_SECRET_ACCESS_KEY
-* AWS_SESSION_TOKEN (optional)
+
+- AWS_ACCESS_KEY_ID
+- AWS_SECRET_ACCESS_KEY
+- AWS_SESSION_TOKEN (optional)
 
 If the user's account has more a MFA device associated it will be prompted for the token generated.
 In case the devices are more then one it will be first prompted to pick a device to use for MFA.
@@ -39,26 +40,31 @@ Install aws-cli using your favourite package manager or windows installer and Ru
 $ aws configure
 AWS Access Key ID [None]: my-aws-key
 AWS Secret Access Key [None]: my-aws-secret-key
-Default region name [None]: 
+Default region name [None]:
 Default output format [None]:
 ```
 
 ### Using Environment Variables
 
-***Linux***
+**_Linux_**
 
 ```
-export AWS_ACCESS_KEY_ID=my-aws-key 
-export AWS_SECRET_ACCESS_KEY=my-aws-secret-key 
+export AWS_ACCESS_KEY_ID=my-aws-key
+export AWS_SECRET_ACCESS_KEY=my-aws-secret-key
 ```
 
 For a persistent configuration copy above lines in your
 
-```~/.bashrc``` or ```~/.zshrc``` depending on your shell 
+`~/.bashrc` or `~/.zshrc` depending on your shell
 
-***Windows***
+**_Windows_**
 
-TODO
+Using Powershell:
+
+```
+$Env:AWS_ACCESS_KEY_ID = "<my-aws-key>"
+$Env:AWS_SECRET_ACCESS_KEY= "<my-aws-secret-key>"
+```
 
 # Users
 
@@ -66,13 +72,13 @@ TODO
 
 ### Existing projects using swing
 
-On existing projects it is supposed to have ```swing.csv``` somewhere in the code. If it's in the same dir swing is you'll just run
+On existing projects it is supposed to have `swing.csv` somewhere in the code. If it's in the same dir swing is you'll just run
 
 ```
 $ swing -d -s pathto/swing.csv
 ```
 
-### New projects 
+### New projects
 
 Just start uploading your files on an existing S3 bucket. You must have access to the bucket specified with option `-bucket` (Check the following Usage Section for details)
 
@@ -80,12 +86,12 @@ Just start uploading your files on an existing S3 bucket. You must have access t
 
 Swing accepts these arguments:
 
-  * `-h` or `-help` prints the help
-  * `-r` or `-region` AWS region in which the bucket is stored
-  * `-b` or `-bucket` name of the bucket to use
-  * `-s` or `-swing-file` specifies a custom CSV file used to write files list on upload and read them on download, defaults to `swing.csv`
-  * `-d` or `-download` starts download of files found in specified swing file
-  * `-h` or `-help` shows the help text
+- `-h` or `-help` prints the help
+- `-r` or `-region` AWS region in which the bucket is stored
+- `-b` or `-bucket` name of the bucket to use
+- `-s` or `-swing-file` specifies a custom CSV file used to write files list on upload and read them on download, defaults to `swing.csv`
+- `-d` or `-download` starts download of files found in specified swing file
+- `-h` or `-help` shows the help text
 
 To upload:
 
@@ -103,7 +109,6 @@ If the `--region` flag is omitted the region specified in the AWS shared config 
 
 Note that the list of paths saved will be relative to the Swing file and they **MUST** be on the same or below folder.
 
-
 To download:
 
 ```
@@ -112,14 +117,13 @@ swing --download
 
 If no default Swing file is found in the current folder nothing will be done.
 
-
 Both on upload and download you can specify a custom Swing file with `--swing-file` and the relative path.
 
-# Developers 
+# Developers
 
 ## Necessary AWS IAM permissions
 
-S3 Buckets permissions 
+S3 Buckets permissions
 
 ```
 {
@@ -148,7 +152,7 @@ S3 Buckets permissions
 }
 ```
 
-IAM permissions 
+IAM permissions
 
 ```
 {
