@@ -205,6 +205,10 @@ Or just install it with:
 go install
 ```
 
+## Create a new Release
+
+Git Tag with X.X.X (e.g: 0.1.4), an action build will be triggered and if everything is ok a new release with same name will be ready for download
+
 [aws-env-vars-docs]: https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html
 [aws-credentials-docs]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html#Using_CreateAccessKey
 [swing-releases]: https://github.com/moldiscovery/swing/releases
