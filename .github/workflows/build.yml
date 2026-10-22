@@ -8,9 +8,16 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Check out repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
 
       - name: Build and package Linux
         env:
@@ -37,42 +44,12 @@ jobs:
           zip -r swing-osx-x64.zip README.md LICENSE swing
 
       - name: Create release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v3
         with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
+          name: Release ${{ github.ref_name }}
           draft: false
           prerelease: false
-
-      - name: Upload Linux package
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./swing-linux-x64.zip
-          asset_name: swing-linux-x64.zip
-          asset_content_type: application/zip
-
-      - name: Upload Windows package
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./swing-windows-x64.zip
-          asset_name: swing-windows-x64.zip
-          asset_content_type: application/zip
-
-      - name: Upload OS X package
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./swing-osx-x64.zip
-          asset_name: swing-osx-x64.zip
-          asset_content_type: application/zip
+          files: |
+            swing-linux-x64.zip
+            swing-windows-x64.zip
+            swing-osx-x64.zip
