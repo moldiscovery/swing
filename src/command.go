@@ -1,6 +1,7 @@
 package swing
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -58,7 +59,7 @@ func Run() {
 
 	flag.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), "Swing version %s\n", CurrentVersion)
-		fmt.Fprintln(flag.CommandLine.Output(), usage)
+		fmt.Fprint(flag.CommandLine.Output(), usage)
 		fmt.Fprintln(flag.CommandLine.Output(), "Arguments:")
 		flag.PrintDefaults()
 		os.Exit(0)
@@ -93,7 +94,7 @@ func Run() {
 	}
 	swingDir, _ := filepath.Split(swingAbsPath)
 
-	sess, err := Authorize(region)
+	cfg, err := Authorize(context.TODO(), region)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -110,7 +111,7 @@ func Run() {
 		SwingDir:  swingDir,
 		Bucket:    bucket,
 		BatchMode: confirm,
-		Session:   sess,
+		Config:    cfg,
 	}
 
 	files := make([]*os.File, 0)

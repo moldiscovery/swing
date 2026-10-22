@@ -3,6 +3,8 @@
 
 ### Go ###
 # Binaries for programs and plugins
+swing
+swing-linux-x64.zip
 *.exe
 *.exe~
 *.dll

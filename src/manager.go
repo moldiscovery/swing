@@ -2,6 +2,7 @@ package swing
 
 import (
 	"bufio"
+	"context"
 	"crypto/md5"
 	"encoding/csv"
 	"encoding/hex"
@@ -12,10 +13,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
 // Manager handles upload and download of files from bucket.
@@ -25,7 +25,7 @@ type Manager struct {
 	SwingDir  string
 	Bucket    string
 	BatchMode bool
-	Session   *session.Session
+	Config    aws.Config
 }
 
 type uploadedFile struct {
@@ -64,7 +64,8 @@ func (m *Manager) Upload(files []*os.File) {
 		}
 	}
 
-	uploader := s3manager.NewUploader(m.Session)
+	ctx := context.TODO()
+	uploader := manager.NewUploader(s3.NewFromConfig(m.Config))
 	resc := make(chan uploadedFile)
 	errc := make(chan error)
 
@@ -90,8 +91,8 @@ func (m *Manager) Upload(files []*os.File) {
 			}
 			relFilePath = filepath.ToSlash(relFilePath)
 
-			res, err := uploader.Upload(
-				&s3manager.UploadInput{
+			res, err := uploader.Upload(ctx,
+				&s3.PutObjectInput{
 					Bucket: aws.String(m.Bucket),
 					Key:    aws.String(relFilePath),
 					Body:   &f,
@@ -105,10 +106,10 @@ func (m *Manager) Upload(files []*os.File) {
 
 			resc <- uploadedFile{
 				Path:      relFilePath,
-				Region:    *m.Session.Config.Region,
+				Region:    m.Config.Region,
 				Bucket:    m.Bucket,
 				MD5:       md5String,
-				VersionID: *res.VersionID,
+				VersionID: aws.ToString(res.VersionID),
 			}
 		}(*file)
 	}
@@ -211,11 +212,9 @@ func (m *Manager) Download() {
 
 			text = strings.ToLower(strings.TrimSpace(text))
 			switch text {
-			case "yes":
-			case "y":
+			case "yes", "y":
 				fmt.Println("Starting download")
-			case "no":
-			case "n":
+			default:
 				fmt.Println("Aborting download")
 				os.Exit(0)
 			}
@@ -224,24 +223,30 @@ func (m *Manager) Download() {
 		fmt.Println("Nothing to download, files already updated")
 	}
 
+	ctx := context.TODO()
 	errc := make(chan error)
 	filec := make(chan string)
 
 	for _, file := range toDownload {
 		go func(f uploadedFile) {
 			downloadPath := filepath.Join(m.SwingDir, filepath.FromSlash(f.Path))
-			file, err := os.OpenFile(downloadPath, os.O_WRONLY|os.O_CREATE, 0644)
+			if err := os.MkdirAll(filepath.Dir(downloadPath), os.ModePerm); err != nil {
+				errc <- fmt.Errorf("Can't create directory: %v", err)
+				return
+			}
+			file, err := os.OpenFile(downloadPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 			if err != nil {
 				errc <- fmt.Errorf("Can't open file: %v", err)
 				return
 			}
 
-			downloader := s3manager.NewDownloader(m.Session.Copy(
-				&aws.Config{
-					Region: aws.String(f.Region),
-				},
-			))
-			_, err = downloader.Download(
+			defer file.Close()
+
+			client := s3.NewFromConfig(m.Config, func(o *s3.Options) {
+				o.Region = f.Region
+			})
+			downloader := manager.NewDownloader(client)
+			_, err = downloader.Download(ctx,
 				file,
 				&s3.GetObjectInput{
 					Bucket:    aws.String(f.Bucket),

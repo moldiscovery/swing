@@ -2,6 +2,7 @@ package swing
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -11,77 +12,73 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/iam"
-	"github.com/aws/aws-sdk-go/service/sts"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/iam"
+	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
 )
 
 // Authorize user using saved credentials, if MFA devices are found
 // for this user asks to pick device and input token
-func Authorize(region string) (*session.Session, error) {
+func Authorize(ctx context.Context, region string) (aws.Config, error) {
 	creds, err := readCache()
 	if err != nil {
-		return nil, err
+		return aws.Config{}, err
 	}
 
 	if creds != nil && creds.Expiration.After(time.Now().UTC()) {
 		// Cache hit, user is still authenticated
-		return session.Must(session.NewSession(
-			&aws.Config{
-				Region: aws.String(region),
-				Credentials: credentials.NewStaticCredentialsFromCreds(
-					credentials.Value{
-						AccessKeyID:     creds.AccessKey,
-						SecretAccessKey: creds.SecretAccessKey,
-						SessionToken:    creds.SessionToken,
-					},
-				),
-			},
-		)), nil
+		return loadConfig(ctx, region, creds.AccessKey, creds.SecretAccessKey, creds.SessionToken)
 	}
 
-	// Region set here is overwritten if found in AWS shared credential file
-	sess := session.Must(session.NewSession(&aws.Config{
-		Region: aws.String(region),
-	}))
-
-	_, err = sess.Config.Credentials.Get()
+	// Region set here is overwritten if found in AWS shared config file
+	cfg, err := loadConfig(ctx, region, "", "", "")
 	if err != nil {
-		return nil, err
-	}
-	devices, err := getMFADevices(sess)
-	if err != nil {
-		return nil, err
+		return aws.Config{}, err
 	}
 
-	var token string
-	var device *iam.MFADevice
+	_, err = cfg.Credentials.Retrieve(ctx)
+	if err != nil {
+		return aws.Config{}, err
+	}
+	devices, err := getMFADevices(ctx, cfg)
+	if err != nil {
+		return aws.Config{}, err
+	}
+
+	var device iamtypes.MFADevice
 
 	if len(devices) > 1 {
 		// Ask user which device
 		device, err = getDevice(devices)
+		if err != nil {
+			return aws.Config{}, err
+		}
 	} else if len(devices) == 1 {
 		device = devices[0]
 	} else {
 		// No MFA, already authorized
-		return sess, nil
+		return cfg, nil
 	}
 
 	// Ask user for token
-	token, err = getToken(*device.SerialNumber)
+	token, err := getToken(*device.SerialNumber)
+	if err != nil {
+		return aws.Config{}, err
+	}
 
 	// Get new credentials
-	svc := sts.New(sess)
-	newCredentials, err := svc.GetSessionToken(
+	svc := sts.NewFromConfig(cfg)
+	newCredentials, err := svc.GetSessionToken(ctx,
 		&sts.GetSessionTokenInput{
 			SerialNumber: device.SerialNumber,
 			TokenCode:    aws.String(token),
 		},
 	)
 	if err != nil {
-		return nil, err
+		return aws.Config{}, err
 	}
 
 	saveCache(&cachedCredentials{
@@ -91,18 +88,31 @@ func Authorize(region string) (*session.Session, error) {
 		Expiration:      *newCredentials.Credentials.Expiration,
 	})
 
-	return session.Must(session.NewSession(
-		&aws.Config{
-			Region: aws.String(region),
-			Credentials: credentials.NewStaticCredentialsFromCreds(
-				credentials.Value{
-					AccessKeyID:     *newCredentials.Credentials.AccessKeyId,
-					SecretAccessKey: *newCredentials.Credentials.SecretAccessKey,
-					SessionToken:    *newCredentials.Credentials.SessionToken,
-				},
-			),
-		},
-	)), nil
+	return loadConfig(ctx, region,
+		*newCredentials.Credentials.AccessKeyId,
+		*newCredentials.Credentials.SecretAccessKey,
+		*newCredentials.Credentials.SessionToken,
+	)
+}
+
+// Loads default AWS config, if accessKey is set static credentials
+// are used instead of the default credentials chain
+func loadConfig(ctx context.Context, region, accessKey, secretAccessKey, sessionToken string) (aws.Config, error) {
+	opts := make([]func(*config.LoadOptions) error, 0)
+	if region != "" {
+		opts = append(opts, config.WithRegion(region))
+	}
+	if accessKey != "" {
+		opts = append(opts, config.WithCredentialsProvider(
+			credentials.NewStaticCredentialsProvider(accessKey, secretAccessKey, sessionToken),
+		))
+	}
+
+	cfg, err := config.LoadDefaultConfig(ctx, opts...)
+	if err != nil {
+		return aws.Config{}, fmt.Errorf("Can't load AWS config: %v", err)
+	}
+	return cfg, nil
 }
 
 type cachedCredentials struct {
@@ -169,20 +179,20 @@ func saveCache(c *cachedCredentials) error {
 }
 
 // Gets list of MFA devices associated with the user's account
-func getMFADevices(s *session.Session) ([]*iam.MFADevice, error) {
-	svc := iam.New(s)
+func getMFADevices(ctx context.Context, cfg aws.Config) ([]iamtypes.MFADevice, error) {
+	svc := iam.NewFromConfig(cfg)
 
-	userOut, err := svc.GetUser(&iam.GetUserInput{})
+	userOut, err := svc.GetUser(ctx, &iam.GetUserInput{})
 	if err != nil {
-		return make([]*iam.MFADevice, 0),
+		return make([]iamtypes.MFADevice, 0),
 			fmt.Errorf("Error requesting user name: %v", err)
 	}
 
-	mfaDevicesOut, err := svc.ListMFADevices(&iam.ListMFADevicesInput{
+	mfaDevicesOut, err := svc.ListMFADevices(ctx, &iam.ListMFADevicesInput{
 		UserName: userOut.User.UserName,
 	})
 	if err != nil {
-		return make([]*iam.MFADevice, 0),
+		return make([]iamtypes.MFADevice, 0),
 			fmt.Errorf("Error requesting MFA devices: %v", err)
 	}
 
@@ -210,10 +220,10 @@ func getToken(mfaDevice string) (string, error) {
 }
 
 // Keeps asking user to choose device for authentication
-func getDevice(mfaDevices []*iam.MFADevice) (*iam.MFADevice, error) {
+func getDevice(mfaDevices []iamtypes.MFADevice) (iamtypes.MFADevice, error) {
 	reader := bufio.NewReader(os.Stdin)
 	for i, device := range mfaDevices {
-		fmt.Printf("%d) %s", i, *device.SerialNumber)
+		fmt.Printf("%d) %s\n", i, *device.SerialNumber)
 	}
 	deviceIndex := -1
 	for {
@@ -224,11 +234,11 @@ func getDevice(mfaDevices []*iam.MFADevice) (*iam.MFADevice, error) {
 		fmt.Printf("Choose MFA device to authenticate [0-%d]: ", len(mfaDevices)-1)
 		device, err := reader.ReadString('\n')
 		if err != nil {
-			return nil, fmt.Errorf("Can't read device input: %v", err)
+			return iamtypes.MFADevice{}, fmt.Errorf("Can't read device input: %v", err)
 		}
-		deviceIndex, err = strconv.Atoi(device)
+		deviceIndex, err = strconv.Atoi(strings.TrimSpace(device))
 		if err != nil {
-			return nil, fmt.Errorf("Can't parse device input: %v", err)
+			return iamtypes.MFADevice{}, fmt.Errorf("Can't parse device input: %v", err)
 		}
 	}
 

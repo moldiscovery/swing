@@ -191,7 +191,7 @@ libraries/other_lib.a;eu-central-1;test.bucket.com;f572bf8f0ca53b342aca927a509d3
 
 ## Build
 
-Go 1.14 or later are required.
+Go 1.24 or later are required.
 
 To build run:
 
