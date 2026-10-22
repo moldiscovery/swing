@@ -1,3 +1,3 @@
 package swing
 
-const CurrentVersion string = "0.1.3"
+const CurrentVersion string = "1.0.0"
